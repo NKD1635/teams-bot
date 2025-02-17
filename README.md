@@ -1,2 +1,2 @@
 # teams-bot
-Startup-weekend_20250216
+teams_bot_20250216
