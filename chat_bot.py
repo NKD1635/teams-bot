@@ -1,67 +1,102 @@
-from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QLineEdit, QFrame, QTextEdit
-from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtCore import QUrl, QTimer
-import sys
+import json
+import google.generativeai as genai
+import time
+import os
+import threading
+import tkinter as tk
 
-class Browser(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("PyQt Web Browser")
-        self.setGeometry(100, 100, 1024, 768)
+# Geminiの設定
+genai.configure(api_key="xxxxx")  # GeminiのAPIキーを取得して設定
 
-        self.browser = QWebEngineView()
-        self.browser.setUrl(QUrl("https://teams.microsoft.com"))
+system_content = """あなたは私のAIアシスタントです。あなたは会話の他に以下のスキルを備えています。
 
-        self.url_bar = QLineEdit()
-        self.url_bar.setText("https://teams.microsoft.com")
-        self.url_bar.returnPressed.connect(self.load_url)
+# 会議時の質問提示スキル
+* 会議中の会話をインプットすると、3つの質問とその質問の意図を生成します。
+"""
+messages = [{"role": "system", "content": system_content}]
 
-        self.go_button = QPushButton("移動")
-        self.go_button.clicked.connect(self.load_url)
+# messagesの変換用ヘルパー関数
+def convert_messages(msg_list: list) -> list:
+    return [m["content"] for m in msg_list]  # Gemini用に単純なリストに変換
 
-        # 右側の余白スペース（output.txtを表示）
-        self.right_space = QTextEdit()
-        self.right_space.setFixedWidth(300)  # 余白の幅を設定
-        self.right_space.setReadOnly(True)
-        self.update_output_text()
+# 前提のプロンプト
+def generate_meeting_questions(meeting_text: str) -> str:
+    prompt = (
+        "以下の会議内容を基に、重要な点を掘り下げるための3つの質問を作成してください。"
+        "また、それぞれの質問の意図を説明してください。\n"
+        f"会議内容: {meeting_text}"
+    )
+    model = genai.GenerativeModel("gemini-pro")
+    resp = model.generate_content([prompt])
+    return resp.text
 
-        # 1秒ごとにoutput.txtを更新
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update_output_text)
-        self.timer.start(1000)
+skills = {"generate_meeting_questions": generate_meeting_questions}
 
-        # メインのレイアウト（横方向）
-        main_layout = QHBoxLayout()
+# ファイルを作成する関数（存在しない場合のみ）
+def ensure_file_exists(filepath: str, initial_content: str = ""):
+    try:
+        with open(filepath, "x", encoding="utf-8") as file:
+            file.write(initial_content)
+    except FileExistsError:
+        pass
 
-        # 左側のレイアウト（URLバー、ボタン、Webビュー）
-        left_layout = QVBoxLayout()
-        left_layout.addWidget(self.url_bar)
-        left_layout.addWidget(self.go_button)
-        left_layout.addWidget(self.browser)
+# ファイルから入力を読み取る関数
+def read_input_file(filepath: str) -> str:
+    try:
+        with open(filepath, "r", encoding="utf-8") as file:
+            return file.read().strip()
+    except FileNotFoundError:
+        ensure_file_exists(filepath)
+        return ""
 
-        # レイアウトを追加
-        container = QWidget()
-        container.setLayout(left_layout)
-        main_layout.addWidget(container)
-        main_layout.addWidget(self.right_space)  # 右側の余白（output.txt表示）
+# 出力をファイルに書き込む関数
+def write_output_file(filepath: str, content: str):
+    with open(filepath, "w", encoding="utf-8") as file:
+        file.write(content)
 
-        main_container = QWidget()
-        main_container.setLayout(main_layout)
-        self.setCentralWidget(main_container)
+# ファイルの確認と作成
+input_file = "input.txt"
+output_file = "output.txt"
+ensure_file_exists(input_file)
+ensure_file_exists(output_file)
 
-    def load_url(self):
-        url = self.url_bar.text()
-        self.browser.setUrl(QUrl(url))  # ✅ 文字列を QUrl に変換
+# 終了フラグ
+task_running = True
 
-    def update_output_text(self):
-        try:
-            with open("output.txt", "r", encoding="utf-8") as file:
-                self.right_space.setText(file.read())
-        except FileNotFoundError:
-            self.right_space.setText("output.txt not found.")
+def stop_program():
+    global task_running
+    task_running = False
+    root.quit()
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = Browser()
-    window.show()
-    sys.exit(app.exec())
+def generate_questions():
+    text = read_input_file(input_file)
+    if text:
+        intent = "generate_meeting_questions"
+        entities = {"meeting_text": text}
+        skill = skills[intent]
+        resp = skill(**entities)
+        print(f"bot> {resp}")
+        write_output_file(output_file, resp)
+
+# Tkinter GUI を作成
+root = tk.Tk()
+root.title("会議アシスタント")
+root.geometry("300x150")
+
+exit_button = tk.Button(root, text="終了", command=stop_program)
+exit_button.pack(pady=10)
+
+generate_button = tk.Button(root, text="質問を生成", command=generate_questions)
+generate_button.pack(pady=10)
+
+# ループをバックグラウンドで実行
+def run_task():
+    global task_running
+    while task_running:
+        generate_questions()
+        time.sleep(30)
+
+threading.Thread(target=run_task, daemon=True).start()
+root.mainloop()
+
+print("Program exited.")
