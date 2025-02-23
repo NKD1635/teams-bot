@@ -1,3 +1,5 @@
+#teamsの画面とoutput.txtを表示するプログラム
+
 from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QLineEdit, QFrame, QTextEdit
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtCore import QUrl, QTimer
@@ -23,6 +25,7 @@ class Browser(QMainWindow):
         self.right_space = QTextEdit()
         self.right_space.setFixedWidth(300)  # 余白の幅を設定
         self.right_space.setReadOnly(True)
+        self.right_space.setStyleSheet("font-size: 20px;")
         self.update_output_text()
 
         # 1秒ごとにoutput.txtを更新
@@ -51,7 +54,7 @@ class Browser(QMainWindow):
 
     def load_url(self):
         url = self.url_bar.text()
-        self.browser.setUrl(QUrl(url))  # ✅ 文字列を QUrl に変換
+        self.browser.setUrl(QUrl(url))  # 文字列を QUrl に変換
 
     def update_output_text(self):
         try:
