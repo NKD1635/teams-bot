@@ -12,7 +12,7 @@ import threading
 import tkinter as tk
 
 # -- ① Geminiの設定 --
-genai.configure(api_key="AIzaSyAH4z7BE-6XONtHlkLBGnqL4oXdgWyXk5Y")  # GeminiのAPIキーを取得して設定
+genai.configure(api_key="xxxxxx")  # GeminiのAPIキーを取得して設定
 
 # システムロールの指示はそのまま
 system_content = """あなたは私のAIアシスタントです。あなたは会議の他に以下のスキルを備えています。
