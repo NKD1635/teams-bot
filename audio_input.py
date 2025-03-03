@@ -1,3 +1,8 @@
+'''
+https://alphacephei.com/vosk/models
+vosk-model-small-ja-0.22のインストール必須。
+実行ファイルと同じパスに移動させてください。
+'''
 import pyaudio
 import json
 from vosk import Model, KaldiRecognizer
